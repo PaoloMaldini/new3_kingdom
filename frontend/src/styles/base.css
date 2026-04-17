@@ -1,0 +1,428 @@
+:root {
+  color-scheme: dark;
+  --bg: #0d1118;
+  --panel: rgba(14, 18, 29, 0.76);
+  --panel-strong: rgba(20, 26, 40, 0.92);
+  --border: rgba(255, 255, 255, 0.1);
+  --text: #f4efe5;
+  --muted: rgba(244, 239, 229, 0.72);
+  --gold: #d2b270;
+  --shadow: 0 1.6rem 4rem rgba(0, 0, 0, 0.24);
+  --page-width: min(92vw, 78rem);
+  --section-gap: clamp(1.6rem, 4vw, 3.6rem);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: clamp(15px, 0.95vw, 18px);
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 20rem;
+  min-height: 100dvh;
+  font-family:
+    'Source Han Serif SC',
+    'Noto Serif SC',
+    'Songti SC',
+    'STSong',
+    serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 18% 12%, rgba(210, 178, 112, 0.16), transparent 22vw),
+    radial-gradient(circle at 82% 18%, rgba(111, 143, 216, 0.18), transparent 24vw),
+    linear-gradient(160deg, #0a0e14 0%, #111725 48%, #0d1118 100%);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+}
+
+#app {
+  min-height: 100dvh;
+}
+
+.page-shell {
+  position: relative;
+  width: 100%;
+  min-height: 100dvh;
+  padding: clamp(1rem, 2vw, 1.6rem);
+  overflow: hidden;
+}
+
+.page-shell__glow {
+  position: absolute;
+  width: 26vw;
+  height: 26vw;
+  border-radius: 50%;
+  filter: blur(2.8vw);
+  opacity: 0.32;
+  pointer-events: none;
+}
+
+.page-shell__glow--left {
+  top: -6vh;
+  left: -4vw;
+  background: rgba(201, 95, 86, 0.3);
+}
+
+.page-shell__glow--right {
+  right: -8vw;
+  top: 22vh;
+  background: rgba(74, 147, 112, 0.24);
+}
+
+.site-header,
+.hero-panel,
+.content-section {
+  position: relative;
+  z-index: 1;
+  width: var(--page-width);
+  margin: 0 auto;
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2vw;
+  margin-bottom: clamp(1.4rem, 3vw, 2.4rem);
+}
+
+.brand-lockup__eyebrow,
+.section-kicker {
+  margin: 0 0 0.8vh;
+  color: var(--gold);
+  font-family:
+    'Segoe UI',
+    'PingFang SC',
+    'Microsoft YaHei',
+    sans-serif;
+  font-size: clamp(0.76rem, 1.25vw, 0.96rem);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.brand-lockup h1,
+.section-heading h2,
+.hero-panel h2,
+.faction-card h3,
+.system-card h3 {
+  margin: 0;
+}
+
+.brand-lockup h1 {
+  font-size: clamp(2rem, 4vw, 4.4rem);
+  line-height: 1.08;
+}
+
+.header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  justify-content: flex-end;
+}
+
+.header-meta span,
+.status-badge,
+.system-card__hint {
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family:
+    'Segoe UI',
+    'PingFang SC',
+    'Microsoft YaHei',
+    sans-serif;
+  font-size: clamp(0.8rem, 1.3vw, 0.96rem);
+}
+
+.hero-panel {
+  display: grid;
+  grid-template-columns: 1.25fr 0.9fr;
+  gap: clamp(1rem, 3vw, 2.4rem);
+  min-height: min(74dvh, 46rem);
+  padding: clamp(1.3rem, 3vw, 2.4rem);
+  border-radius: clamp(1.2rem, 2vw, 2rem);
+  background:
+    linear-gradient(135deg, rgba(33, 39, 55, 0.94), rgba(10, 14, 22, 0.86)),
+    var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.hero-panel__copy,
+.hero-panel__stats,
+.system-card,
+.faction-card {
+  backdrop-filter: blur(1rem);
+}
+
+.hero-panel__copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(1rem, 2.4vw, 1.4rem);
+}
+
+.hero-panel h2 {
+  font-size: clamp(1.7rem, 3.2vw, 3.2rem);
+  line-height: 1.18;
+}
+
+.hero-panel__summary,
+.faction-card p,
+.system-card__body {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.8;
+  font-size: clamp(0.98rem, 1.45vw, 1.08rem);
+}
+
+.hero-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: clamp(10rem, 18vw, 12rem);
+  min-height: clamp(2.8rem, 7vh, 3.5rem);
+  padding: 0.8rem 1.3rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  cursor: pointer;
+}
+
+.button:hover {
+  transform: translateY(-0.1rem);
+}
+
+.button--primary {
+  background: linear-gradient(135deg, #c95f56, #8c2a35);
+  color: #fff7f2;
+}
+
+.button--ghost {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.hero-panel__stats {
+  display: grid;
+  gap: 1rem;
+  align-content: center;
+}
+
+.hero-panel__stats article,
+.system-card,
+.faction-card {
+  padding: clamp(1rem, 2.4vw, 1.4rem);
+  border-radius: clamp(1rem, 1.6vw, 1.4rem);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.hero-panel__stats strong,
+.faction-card h3,
+.system-card h3,
+.info-list dd {
+  display: block;
+  font-family:
+    'Segoe UI',
+    'PingFang SC',
+    'Microsoft YaHei',
+    sans-serif;
+  font-size: clamp(1rem, 1.5vw, 1.2rem);
+}
+
+.hero-panel__stats span,
+.info-list dt {
+  color: var(--muted);
+  font-size: clamp(0.88rem, 1.25vw, 0.98rem);
+}
+
+.content-section {
+  margin-top: var(--section-gap);
+}
+
+.section-heading {
+  margin-bottom: clamp(1rem, 2.4vw, 1.6rem);
+}
+
+.section-heading h2 {
+  font-size: clamp(1.55rem, 2.7vw, 2.4rem);
+  line-height: 1.18;
+}
+
+.faction-grid,
+.system-grid {
+  display: grid;
+  gap: clamp(0.9rem, 1.8vw, 1.3rem);
+}
+
+.faction-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.system-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.faction-card {
+  min-height: clamp(15rem, 34vh, 18rem);
+  border-top: 0.24rem solid var(--accent, #6f8fd8);
+}
+
+.faction-card__header,
+.system-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.faction-card__dot {
+  width: clamp(0.7rem, 1vw, 0.9rem);
+  height: clamp(0.7rem, 1vw, 0.9rem);
+  border-radius: 50%;
+  background: var(--accent, #6f8fd8);
+  box-shadow: 0 0 1rem color-mix(in srgb, var(--accent, #6f8fd8) 55%, transparent);
+}
+
+.faction-card__header h3 {
+  flex: 1;
+}
+
+.faction-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  list-style: none;
+  padding: 0;
+  margin: 1.4rem 0 0;
+}
+
+.faction-card__tags li {
+  padding: 0.45rem 0.78rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  font-size: clamp(0.8rem, 1.25vw, 0.92rem);
+}
+
+.content-section--system {
+  padding-bottom: clamp(1.6rem, 4vw, 3rem);
+}
+
+.system-card {
+  min-height: clamp(16rem, 36vh, 19rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.status-badge[data-status='online'] {
+  color: #b3efc9;
+  border-color: rgba(96, 200, 138, 0.4);
+}
+
+.status-badge[data-status='offline'] {
+  color: #ffc4be;
+  border-color: rgba(219, 104, 91, 0.45);
+}
+
+.status-badge[data-status='loading'] {
+  color: #f6ddb1;
+  border-color: rgba(210, 178, 112, 0.4);
+}
+
+.info-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0;
+}
+
+.info-list div {
+  padding: 0.9rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.info-list dt {
+  margin-bottom: 0.5rem;
+}
+
+.info-list dd {
+  margin: 0;
+  line-height: 1.4;
+}
+
+@media (max-width: 960px) {
+  .site-header,
+  .hero-panel,
+  .faction-grid,
+  .system-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .site-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .header-meta {
+    justify-content: flex-start;
+  }
+
+  .hero-panel {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-shell {
+    padding-inline: 4vw;
+  }
+
+  .hero-panel__actions,
+  .system-card__header,
+  .faction-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .button {
+    width: 100%;
+  }
+
+  .info-list {
+    grid-template-columns: 1fr;
+  }
+
+  .page-shell__glow {
+    width: 42vw;
+    height: 42vw;
+  }
+}

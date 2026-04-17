@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: wangquan-backend
+  profiles:
+    active: dev
+
+server:
+  port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+app:
+  name: 王权：新三国后端服务
+  version: 0.1.0
+  cors:
+    allowed-origins: []
