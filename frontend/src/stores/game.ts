@@ -3,8 +3,11 @@ import { ref, computed } from 'vue'
 
 import { type Leader, getLeaderById } from '@/data/leaders'
 import { getScenarioData, getInitialYear, type TimelineEvent, type SideEvent } from '@/data/scenarios'
-import { type GameStatKey, type StatEffect } from '@/data/types'
+import { type StatEffect, type Location, type LocationEvent } from '@/data/types'
 import { type Ending, getEnding, getSpecialEndingById, type EndingCause } from '@/data/endings'
+import { getLocationById } from '@/data/locations'
+import { getSiteById, specialEndings, type HistoricalSite, type HistoricalSiteEvent } from '@/data/historicalSites'
+import { audioManager } from '@/utils/audio'
 
 const INITIAL_STAT = 50
 const MAX_STAT = 100
@@ -28,17 +31,23 @@ export type GameEvent = TimelineEvent | SideEvent
 
 export const useGameStore = defineStore('game', () => {
   const selectedLeader = ref<Leader | null>(null)
+  const selectedLocation = ref<Location | null>(null)
+  const selectedSite = ref<HistoricalSite | null>(null)
   const stats = ref<Stats>(createInitialStats())
   const currentYear = ref(189)
   const turnCount = ref(0)
-  const currentCard = ref<GameEvent | null>(null)
+  const currentCard = ref<GameEvent | LocationEvent | HistoricalSiteEvent | null>(null)
   const usedTimelineIds = ref<string[]>([])
   const usedSideIds = ref<string[]>([])
+  const usedLocationEventIds = ref<string[]>([])
+  const usedSiteEventIds = ref<string[]>([])
   const ending = ref<Ending | null>(null)
   const currentScenario = ref<ReturnType<typeof getScenarioData> | null>(null)
   const isInSideEvent = ref(false)
   const inventory = ref<string[]>([])
   const inventoryTriggers = ref<string[]>([])
+  const isLocationMode = ref(false)
+  const isSiteMode = ref(false)
 
   function hasInventoryItem(item: string): boolean {
     return inventory.value.includes(item)
@@ -62,35 +71,6 @@ export const useGameStore = defineStore('game', () => {
 
   const isGameOver = computed(() => ending.value !== null)
 
-  function shuffle<T>(array: T[]): T[] {
-    const result = [...array]
-    for (let i = result.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[result[i], result[j]] = [result[j], result[i]]
-    }
-    return result
-  }
-
-  function drawNextSideEvent(): SideEvent | null {
-    if (!currentScenario.value) return null
-
-    const availableSides = currentScenario.value.sideEvents.filter(
-      (e) => !usedSideIds.value.includes(e.id)
-    )
-
-    if (availableSides.length === 0) {
-      usedSideIds.value = []
-      return drawNextSideEvent()
-    }
-
-    const shuffled = shuffle(availableSides)
-    const nextEvent = shuffled[0]
-    if (nextEvent) {
-      usedSideIds.value.push(nextEvent.id)
-    }
-    return nextEvent || null
-  }
-
   function applyEffects(effects: StatEffect) {
     if (effects.heaven !== undefined) {
       stats.value.heaven = Math.max(MIN_STAT, Math.min(MAX_STAT, stats.value.heaven + effects.heaven))
@@ -111,6 +91,7 @@ export const useGameStore = defineStore('game', () => {
       const specialEnding = getSpecialEndingById(currentCard.value.specialEndingId)
       if (specialEnding) {
         ending.value = specialEnding
+        playEndingSound(specialEnding.id)
         return
       }
     }
@@ -122,11 +103,39 @@ export const useGameStore = defineStore('game', () => {
       const value = currentStats[statKey]
       if (value >= MAX_STAT) {
         ending.value = getEnding(statKey as EndingCause, true) || null
+        playEndingSound(null, true)
         return
       }
       if (value <= MIN_STAT) {
         ending.value = getEnding(statKey as EndingCause, false) || null
+        playEndingSound(null, false)
         return
+      }
+    }
+  }
+
+  function playEndingSound(specialEndingId: string | null, isHigh: boolean = false) {
+    const endingData = specialEndingId 
+      ? specialEndings.find(e => e.id === specialEndingId)
+      : null
+    
+    if (endingData) {
+      if (endingData.category === 'good') {
+        audioManager.playGoodEnding()
+      } else if (endingData.category === 'bad') {
+        audioManager.playBadEnding()
+      } else {
+        if (isHigh) {
+          audioManager.playGoodEnding()
+        } else {
+          audioManager.playBadEnding()
+        }
+      }
+    } else {
+      if (isHigh) {
+        audioManager.playGoodEnding()
+      } else {
+        audioManager.playBadEnding()
       }
     }
   }
@@ -143,6 +152,7 @@ export const useGameStore = defineStore('game', () => {
     usedSideIds.value = []
     ending.value = null
     isInSideEvent.value = false
+    isSiteMode.value = false
     currentScenario.value = getScenarioData(leaderId) || null
 
     if (currentScenario.value) {
@@ -158,8 +168,10 @@ export const useGameStore = defineStore('game', () => {
 
   function applyChoice(direction: 'left' | 'right') {
     if (!currentCard.value || !selectedLeader.value) return
+    if (isSiteMode.value || isLocationMode.value) return
 
-    const choice = currentCard.value.choices.find((c) => c.direction === direction)
+    const card = currentCard.value as GameEvent
+    const choice = card.choices.find((c) => c.direction === direction)
     if (!choice) return
 
     if (choice.requiredInventoryItem) {
@@ -188,11 +200,11 @@ export const useGameStore = defineStore('game', () => {
       addInventoryTrigger(choice.triggerInventoryItem)
     }
 
-    if (currentCard.value.type === 'timeline') {
-      currentYear.value = currentCard.value.year
+    if (card.type === 'timeline') {
+      currentYear.value = card.year
       if (effectiveNextTimelineId && currentScenario.value) {
-        let nextEvent = currentScenario.value.getTimelineEvent(effectiveNextTimelineId)
-        let nextSideEvent = currentScenario.value.getSideEvent(effectiveNextTimelineId)
+        const nextEvent = currentScenario.value.getTimelineEvent(effectiveNextTimelineId)
+        const nextSideEvent = currentScenario.value.getSideEvent(effectiveNextTimelineId)
         
         if (nextEvent) {
           if (nextEvent.specialEndingId) {
@@ -209,7 +221,7 @@ export const useGameStore = defineStore('game', () => {
       } else {
         checkEnding()
       }
-    } else if (currentCard.value.type === 'side') {
+    } else if (card.type === 'side') {
       if (choice.completionEventId && currentScenario.value) {
         const completionEvent = currentScenario.value.getSideEvent(choice.completionEventId)
         if (completionEvent) {
@@ -265,35 +277,180 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
-  function drawRandomSideEvent() {
-    const sideEvent = drawNextSideEvent()
-    if (sideEvent) {
-      currentCard.value = sideEvent
-      isInSideEvent.value = true
+  function startLocationRun(locationId: string, leaderId?: string) {
+    const location = getLocationById(locationId)
+    if (!location) return
+
+    selectedLocation.value = location
+    isLocationMode.value = true
+    isSiteMode.value = false
+    stats.value = createInitialStats()
+    turnCount.value = 0
+    usedLocationEventIds.value = []
+    ending.value = null
+
+    if (leaderId) {
+      const leader = getLeaderById(leaderId)
+      if (leader) {
+        selectedLeader.value = leader
+      }
+    }
+
+    const firstEvent = location.events[0]
+    if (firstEvent) {
+      currentCard.value = firstEvent
+      currentYear.value = firstEvent.year
+      usedLocationEventIds.value.push(firstEvent.id)
+    }
+  }
+
+  function applyLocationChoice(direction: 'left' | 'right') {
+    if (!currentCard.value || !selectedLocation.value) return
+
+    const choice = currentCard.value.choices.find((c) => c.direction === direction)
+    if (!choice) return
+
+    applyEffects(choice.effects)
+    turnCount.value++
+
+    const currentLocationEvents = selectedLocation.value.events
+    const currentEventIndex = currentLocationEvents.findIndex(
+      e => e.id === (currentCard.value as LocationEvent).id
+    )
+
+    if (currentEventIndex < currentLocationEvents.length - 1) {
+      const nextEvent = currentLocationEvents[currentEventIndex + 1]
+      currentCard.value = nextEvent
+      currentYear.value = nextEvent.year
+      usedLocationEventIds.value.push(nextEvent.id)
+    } else {
+      checkEnding()
+    }
+  }
+
+  function startSiteRun(siteId: string) {
+    const site = getSiteById(siteId)
+    if (!site) return
+
+    selectedSite.value = site
+    isSiteMode.value = true
+    isLocationMode.value = false
+    stats.value = createInitialStats()
+    turnCount.value = 0
+    usedSiteEventIds.value = []
+    ending.value = null
+
+    const firstEvent = site.events[0]
+    if (firstEvent) {
+      currentCard.value = firstEvent
+      currentYear.value = firstEvent.year
+      usedSiteEventIds.value.push(firstEvent.id)
+    }
+  }
+
+  function applySiteChoice(direction: 'left' | 'right') {
+    if (!currentCard.value || !selectedSite.value) return
+
+    const choice = currentCard.value.choices.find((c) => c.direction === direction)
+    if (!choice) return
+
+    applyEffects(choice.effects)
+    playChoiceSound(choice.effects)
+    turnCount.value++
+
+    const currentSiteEvents = selectedSite.value.events
+    const currentEventIndex = currentSiteEvents.findIndex(
+      e => e.id === (currentCard.value as HistoricalSiteEvent).id
+    )
+
+    if (currentEventIndex < currentSiteEvents.length - 1) {
+      const nextEvent = currentSiteEvents[currentEventIndex + 1]
+      currentCard.value = nextEvent
+      currentYear.value = nextEvent.year
+      usedSiteEventIds.value.push(nextEvent.id)
+    } else {
+      checkEnding()
+    }
+  }
+
+  function playChoiceSound(effects: StatEffect) {
+    const DANGER_THRESHOLD = 90
+    const LOW_THRESHOLD = 10
+
+    let hasHigh = false
+    let hasLow = false
+
+    if (effects.heaven !== undefined) {
+      const newValue = stats.value.heaven
+      if (newValue >= DANGER_THRESHOLD || newValue <= LOW_THRESHOLD) {
+        if (effects.heaven > 0) hasHigh = true
+        else hasLow = true
+      }
+    }
+    if (effects.politics !== undefined) {
+      const newValue = stats.value.politics
+      if (newValue >= DANGER_THRESHOLD || newValue <= LOW_THRESHOLD) {
+        if (effects.politics > 0) hasHigh = true
+        else hasLow = true
+      }
+    }
+    if (effects.military !== undefined) {
+      const newValue = stats.value.military
+      if (newValue >= DANGER_THRESHOLD || newValue <= LOW_THRESHOLD) {
+        if (effects.military > 0) hasHigh = true
+        else hasLow = true
+      }
+    }
+    if (effects.provisions !== undefined) {
+      const newValue = stats.value.provisions
+      if (newValue >= DANGER_THRESHOLD || newValue <= LOW_THRESHOLD) {
+        if (effects.provisions > 0) hasHigh = true
+        else hasLow = true
+      }
+    }
+
+    if (hasHigh) {
+      audioManager.playHighValueWarning()
+    } else if (hasLow) {
+      audioManager.playLowValueWarning()
     }
   }
 
   function resetRun() {
-    if (selectedLeader.value) {
+    audioManager.stop()
+    if (isSiteMode.value && selectedSite.value) {
+      startSiteRun(selectedSite.value.id)
+    } else if (selectedLeader.value && isLocationMode.value && selectedLocation.value) {
+      startLocationRun(selectedLocation.value.id, selectedLeader.value.id)
+    } else if (selectedLeader.value) {
       startNewRun(selectedLeader.value.id)
     }
   }
 
   function resetToHome() {
+    audioManager.stop()
     selectedLeader.value = null
+    selectedLocation.value = null
+    selectedSite.value = null
     stats.value = createInitialStats()
     currentYear.value = 189
     turnCount.value = 0
     currentCard.value = null
     usedTimelineIds.value = []
     usedSideIds.value = []
+    usedLocationEventIds.value = []
+    usedSiteEventIds.value = []
     ending.value = null
     currentScenario.value = null
     isInSideEvent.value = false
+    isLocationMode.value = false
+    isSiteMode.value = false
   }
 
   return {
     selectedLeader,
+    selectedLocation,
+    selectedSite,
     stats,
     currentYear,
     turnCount,
@@ -301,6 +458,8 @@ export const useGameStore = defineStore('game', () => {
     ending,
     isGameOver,
     isInSideEvent,
+    isLocationMode,
+    isSiteMode,
     inventory,
     inventoryTriggers,
     hasInventoryItem,
@@ -308,7 +467,11 @@ export const useGameStore = defineStore('game', () => {
     checkInventoryTriggers,
     addInventoryTrigger,
     startNewRun,
+    startLocationRun,
+    startSiteRun,
     applyChoice,
+    applyLocationChoice,
+    applySiteChoice,
     resetRun,
     resetToHome,
   }

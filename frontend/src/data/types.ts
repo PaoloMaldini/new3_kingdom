@@ -2,6 +2,34 @@ export type GameStatKey = 'heaven' | 'politics' | 'military' | 'provisions'
 
 export type Direction = 'left' | 'right'
 
+export type LocationType = 'capital' | 'battlefield' | 'strategic'
+
+export interface Location {
+  id: string
+  name: string
+  type: LocationType
+  coordinates: {
+    x: number
+    y: number
+  }
+  description: string
+  historicalSignificance: string
+  associatedLeaders: string[]
+  image?: string
+  color: string
+  events: LocationEvent[]
+}
+
+export interface LocationEvent {
+  id: string
+  title: string
+  year: number
+  description: string
+  protagonist: string
+  protagonistRole: string
+  choices: [Choice, Choice]
+}
+
 export interface StatEffect {
   heaven?: number
   politics?: number
@@ -22,6 +50,7 @@ export interface Choice {
   conditionInventoryItem?: string
   ifHasInventoryItem?: string
   ifNotHasInventoryItem?: string
+  specialEndingId?: string
 }
 
 export interface BaseEvent {

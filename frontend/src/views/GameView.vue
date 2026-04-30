@@ -6,6 +6,9 @@ import EventCard from '@/components/EventCard.vue'
 import type { GameStatKey } from '@/data/types'
 import { getCharacterVisual } from '@/data/types'
 import type { EndingCause } from '@/data/endings'
+import type { HistoricalSiteEvent } from '@/data/historicalSites'
+import type { TimelineEvent, SideEvent, LocationEvent } from '@/data/types'
+import { audioManager } from '@/utils/audio'
 
 const route = useRoute()
 const router = useRouter()
@@ -77,10 +80,87 @@ const statChanges = computed(() => {
 })
 
 const leaderColor = computed(() => gameStore.selectedLeader?.color || '#6f8fd8')
+const locationColor = computed(() => gameStore.selectedLocation?.color || '#6f8fd8')
+const siteColor = computed(() => gameStore.selectedSite?.color || '#6f8fd8')
+
+const isLocationEvent = computed(() => {
+  return gameStore.isLocationMode && gameStore.currentCard && 'title' in gameStore.currentCard
+})
+
+const isSiteEvent = computed(() => {
+  return gameStore.isSiteMode && gameStore.currentCard && 'title' in gameStore.currentCard
+})
+
+const gameColor = computed(() => {
+  if (gameStore.isSiteMode) return siteColor.value
+  if (gameStore.isLocationMode) return locationColor.value
+  return leaderColor.value
+})
+
+const currentEventTitle = computed(() => {
+  if (isSiteEvent.value && gameStore.currentCard) {
+    return (gameStore.currentCard as HistoricalSiteEvent).title
+  }
+  if (isLocationEvent.value && gameStore.currentCard) {
+    return (gameStore.currentCard as LocationEvent).title
+  }
+  return ''
+})
+
+const currentEventProtagonist = computed(() => {
+  if (isSiteEvent.value && gameStore.currentCard) {
+    return (gameStore.currentCard as HistoricalSiteEvent).protagonist
+  }
+  if (isLocationEvent.value && gameStore.currentCard) {
+    return (gameStore.currentCard as LocationEvent).protagonist
+  }
+  if (gameStore.currentCard && 'character' in gameStore.currentCard) {
+    return (gameStore.currentCard as TimelineEvent | SideEvent).character
+  }
+  return ''
+})
+
+const currentEventRole = computed(() => {
+  if (isSiteEvent.value && gameStore.currentCard) {
+    return (gameStore.currentCard as HistoricalSiteEvent).protagonistRole
+  }
+  if (isLocationEvent.value && gameStore.currentCard) {
+    return (gameStore.currentCard as LocationEvent).protagonistRole
+  }
+  if (gameStore.currentCard && 'faction' in gameStore.currentCard) {
+    return (gameStore.currentCard as TimelineEvent | SideEvent).faction || ''
+  }
+  return ''
+})
+
+const currentSiteName = computed(() => {
+  return gameStore.selectedSite?.name || ''
+})
+
+const leaderEventCard = computed(() => {
+  if (!gameStore.currentCard || isSiteEvent.value || isLocationEvent.value) return null
+  const card = gameStore.currentCard as TimelineEvent | SideEvent
+  return {
+    character: card.character,
+    faction: card.faction,
+    description: card.description,
+    leftLabel: card.choices[0].label,
+    rightLabel: card.choices[1].label,
+  }
+})
 
 onMounted(() => {
+  const siteId = route.params.site as string
+  const locationId = route.params.location as string
   const leaderId = route.params.leader as string
-  gameStore.startNewRun(leaderId)
+
+  if (siteId) {
+    gameStore.startSiteRun(siteId)
+  } else if (locationId) {
+    gameStore.startLocationRun(locationId, leaderId)
+  } else if (leaderId) {
+    gameStore.startNewRun(leaderId)
+  }
 })
 
 function handlePointerDown(e: PointerEvent | TouchEvent) {
@@ -110,9 +190,17 @@ function handlePointerMove(e: PointerEvent | TouchEvent) {
 function handlePointerUp() {
   if (!isDragging.value) return
 
+  audioManager.stop()
+
   const distance = Math.abs(dragDistance.value)
   if (distance >= SWIPE_THRESHOLD && dragDirection.value) {
-    gameStore.applyChoice(dragDirection.value)
+    if (gameStore.isSiteMode) {
+      gameStore.applySiteChoice(dragDirection.value)
+    } else if (gameStore.isLocationMode) {
+      gameStore.applyLocationChoice(dragDirection.value)
+    } else {
+      gameStore.applyChoice(dragDirection.value)
+    }
   }
 
   isDragging.value = false
@@ -126,12 +214,16 @@ function handlePointerUp() {
 }
 
 function goHome() {
+  audioManager.stop()
   gameStore.resetToHome()
   router.push({ name: 'home' })
 }
 
 function restartGame() {
-  if (gameStore.selectedLeader) {
+  audioManager.stop()
+  if (gameStore.isSiteMode && gameStore.selectedSite) {
+    gameStore.startSiteRun(gameStore.selectedSite.id)
+  } else if (gameStore.selectedLeader) {
     gameStore.resetRun()
   }
 }
@@ -150,10 +242,27 @@ watch(() => gameStore.isGameOver, (isOver) => {
     <header class="game-header">
       <button class="back-button" @click="goHome">← 返回</button>
       <div class="game-title">
-        <span class="game-title__leader">{{ gameStore.selectedLeader?.name }}</span>
-        <span class="game-title__faction">{{ gameStore.selectedLeader?.faction }}</span>
+        <template v-if="gameStore.isSiteMode">
+          <span class="game-title__leader">{{ gameStore.selectedSite?.name }}</span>
+          <span class="game-title__faction">{{ currentEventTitle }}</span>
+        </template>
+        <template v-else-if="gameStore.isLocationMode">
+          <span class="game-title__leader">{{ gameStore.selectedLocation?.name }}</span>
+          <span class="game-title__faction">{{ currentEventTitle }}</span>
+        </template>
+        <template v-else>
+          <span class="game-title__leader">{{ gameStore.selectedLeader?.name }}</span>
+          <span class="game-title__faction">{{ gameStore.selectedLeader?.faction }}</span>
+        </template>
       </div>
-      <div class="game-year">在位 {{ gameStore.turnCount }} 年 / 当前 {{ gameStore.currentYear }} 年</div>
+      <div class="game-year">
+        <template v-if="gameStore.isSiteMode || gameStore.isLocationMode">
+          {{ currentEventProtagonist }} · {{ currentEventRole }} · {{ gameStore.currentYear }}年
+        </template>
+        <template v-else>
+          在位 {{ gameStore.turnCount }} 年 / 当前 {{ gameStore.currentYear }} 年
+        </template>
+      </div>
     </header>
 
     <section class="stats-panel">
@@ -172,7 +281,7 @@ watch(() => gameStore.isGameOver, (isOver) => {
             class="stat-bar__fill"
             :style="{
               width: `${stat.value}%`,
-              backgroundColor: stat.value >= 80 || stat.value <= 20 ? '#c95f56' : leaderColor,
+              backgroundColor: stat.value >= 80 || stat.value <= 20 ? '#c95f56' : gameColor,
             }"
           ></div>
           <span class="stat-bar__value">{{ stat.value }}</span>
@@ -194,17 +303,83 @@ watch(() => gameStore.isGameOver, (isOver) => {
         @touchstart="handlePointerDown"
       >
         <EventCard
-          v-if="gameStore.currentCard"
-          :character="gameStore.currentCard.character"
-          :faction="gameStore.currentCard.faction"
-          :description="gameStore.currentCard.description"
-          :left-label="gameStore.currentCard.choices[0].label"
-          :right-label="gameStore.currentCard.choices[1].label"
+          v-if="leaderEventCard"
+          :character="leaderEventCard.character"
+          :faction="leaderEventCard.faction"
+          :description="leaderEventCard.description"
+          :left-label="leaderEventCard.leftLabel"
+          :right-label="leaderEventCard.rightLabel"
           :is-dragging="isDragging"
           :drag-direction="dragDirection"
-          :leader-color="leaderColor"
-          :character-img="getCharacterVisual(gameStore.currentCard.character).image"
+          :leader-color="gameColor"
+          :character-img="getCharacterVisual(leaderEventCard.character).image"
         />
+
+        <div
+          v-else-if="gameStore.currentCard && (isSiteEvent || isLocationEvent)"
+          class="location-event-card"
+          :style="{ '--event-color': gameColor }"
+        >
+          <div class="location-event-card__header">
+            <div class="location-event-card__protagonist">
+              <span class="protagonist-name">{{ currentEventProtagonist }}</span>
+              <span class="protagonist-role">{{ currentEventRole }}</span>
+            </div>
+            <div class="location-event-card__location">
+              {{ gameStore.isSiteMode ? currentSiteName : gameStore.selectedLocation?.name }} · {{ gameStore.currentYear }}年
+            </div>
+          </div>
+          <div class="location-event-card__portrait">
+            <div class="portrait-placeholder">
+              {{ currentEventProtagonist[0] }}
+            </div>
+          </div>
+          <div class="location-event-card__description">
+            {{ gameStore.currentCard.description }}
+          </div>
+          <div class="location-event-card__choices">
+            <div
+              class="choice choice--left"
+              :class="{ 'choice--active': dragDirection === 'left' }"
+            >
+              <span class="choice__label">{{ gameStore.currentCard.choices[0].label }}</span>
+              <div class="choice__effects">
+                <span v-if="gameStore.currentCard.choices[0].effects.heaven !== undefined" :class="{ positive: gameStore.currentCard.choices[0].effects.heaven > 0 }">
+                  {{ gameStore.currentCard.choices[0].effects.heaven > 0 ? '+' : '' }}{{ gameStore.currentCard.choices[0].effects.heaven }} 天意
+                </span>
+                <span v-if="gameStore.currentCard.choices[0].effects.politics !== undefined" :class="{ positive: gameStore.currentCard.choices[0].effects.politics > 0 }">
+                  {{ gameStore.currentCard.choices[0].effects.politics > 0 ? '+' : '' }}{{ gameStore.currentCard.choices[0].effects.politics }} 权谋
+                </span>
+                <span v-if="gameStore.currentCard.choices[0].effects.military !== undefined" :class="{ positive: gameStore.currentCard.choices[0].effects.military > 0 }">
+                  {{ gameStore.currentCard.choices[0].effects.military > 0 ? '+' : '' }}{{ gameStore.currentCard.choices[0].effects.military }} 兵力
+                </span>
+                <span v-if="gameStore.currentCard.choices[0].effects.provisions !== undefined" :class="{ positive: gameStore.currentCard.choices[0].effects.provisions > 0 }">
+                  {{ gameStore.currentCard.choices[0].effects.provisions > 0 ? '+' : '' }}{{ gameStore.currentCard.choices[0].effects.provisions }} 粮草
+                </span>
+              </div>
+            </div>
+            <div
+              class="choice choice--right"
+              :class="{ 'choice--active': dragDirection === 'right' }"
+            >
+              <span class="choice__label">{{ gameStore.currentCard.choices[1].label }}</span>
+              <div class="choice__effects">
+                <span v-if="gameStore.currentCard.choices[1].effects.heaven !== undefined" :class="{ positive: gameStore.currentCard.choices[1].effects.heaven > 0 }">
+                  {{ gameStore.currentCard.choices[1].effects.heaven > 0 ? '+' : '' }}{{ gameStore.currentCard.choices[1].effects.heaven }} 天意
+                </span>
+                <span v-if="gameStore.currentCard.choices[1].effects.politics !== undefined" :class="{ positive: gameStore.currentCard.choices[1].effects.politics > 0 }">
+                  {{ gameStore.currentCard.choices[1].effects.politics > 0 ? '+' : '' }}{{ gameStore.currentCard.choices[1].effects.politics }} 权谋
+                </span>
+                <span v-if="gameStore.currentCard.choices[1].effects.military !== undefined" :class="{ positive: gameStore.currentCard.choices[1].effects.military > 0 }">
+                  {{ gameStore.currentCard.choices[1].effects.military > 0 ? '+' : '' }}{{ gameStore.currentCard.choices[1].effects.military }} 兵力
+                </span>
+                <span v-if="gameStore.currentCard.choices[1].effects.provisions !== undefined" :class="{ positive: gameStore.currentCard.choices[1].effects.provisions > 0 }">
+                  {{ gameStore.currentCard.choices[1].effects.provisions > 0 ? '+' : '' }}{{ gameStore.currentCard.choices[1].effects.provisions }} 粮草
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <p class="swipe-hint">← 左右滑动选择 →</p>
@@ -221,7 +396,7 @@ watch(() => gameStore.isGameOver, (isOver) => {
         </div>
         <div class="ending-card__actions">
           <button class="button button--primary" @click="restartGame">再来一局</button>
-          <button class="button button--ghost" @click="goHome">重新选择主公</button>
+          <button class="button button--ghost" @click="goHome">重新选择遗址</button>
         </div>
       </div>
     </section>
@@ -463,6 +638,152 @@ watch(() => gameStore.isGameOver, (isOver) => {
 
   .swipe-indicator {
     display: none;
+  }
+}
+
+.location-event-card {
+  width: 100%;
+  max-width: 36rem;
+  padding: clamp(1.6rem, 3.2vw, 2.4rem);
+  background: linear-gradient(
+    165deg,
+    rgba(33, 39, 55, 0.96),
+    rgba(10, 14, 22, 0.92)
+  );
+  border: 2px solid var(--event-color);
+  border-radius: clamp(1.2rem, 2.8vw, 1.8rem);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.location-event-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.6rem;
+  padding-bottom: 1.2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.location-event-card__protagonist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.protagonist-name {
+  font-size: clamp(1.4rem, 3vw, 1.8rem);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.protagonist-role {
+  font-size: clamp(0.85rem, 1.5vw, 1rem);
+  color: var(--event-color);
+  font-weight: 500;
+}
+
+.location-event-card__location {
+  font-size: clamp(0.82rem, 1.3vw, 0.95rem);
+  color: var(--muted);
+  padding: 0.4rem 0.8rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 0.5rem;
+}
+
+.location-event-card__portrait {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.6rem;
+}
+
+.portrait-placeholder {
+  width: clamp(6rem, 12vw, 8rem);
+  height: clamp(6rem, 12vw, 8rem);
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--event-color), rgba(0, 0, 0, 0.3));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(2.5rem, 5vw, 3.5rem);
+  font-weight: 700;
+  color: var(--text);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.3),
+    0 0 0 4px rgba(255, 255, 255, 0.1);
+}
+
+.location-event-card__description {
+  font-size: clamp(0.92rem, 1.8vw, 1.08rem);
+  line-height: 1.8;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 1.6rem;
+  padding: 1.2rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.location-event-card__choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  padding: 1.2rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.8rem;
+  transition: all 0.3s ease;
+}
+
+.choice--left {
+  text-align: left;
+}
+
+.choice--right {
+  text-align: right;
+}
+
+.choice--active {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--event-color);
+  transform: scale(1.02);
+}
+
+.choice__label {
+  font-size: clamp(0.9rem, 1.6vw, 1.05rem);
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.choice__effects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  font-size: clamp(0.78rem, 1.2vw, 0.88rem);
+  color: var(--muted);
+}
+
+.choice__effects span.positive {
+  color: #4a9370;
+}
+
+@media (max-width: 600px) {
+  .location-event-card__choices {
+    grid-template-columns: 1fr;
+  }
+
+  .choice--left,
+  .choice--right {
+    text-align: left;
   }
 }
 </style>
