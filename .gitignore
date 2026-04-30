@@ -24,3 +24,16 @@ backend/target/
 # Environment
 .env.local
 .env.*.local
+
+# Documentation and reference files
+*.docx
+*.doc
+*.xml
+*.pptx
+*.pdf
+
+# Keep essential documentation
+README.md
+GAME_DESIGN_DOCUMENT.md
+OPERATION_MANUAL.md
+CREATIVE_STATEMENT.md

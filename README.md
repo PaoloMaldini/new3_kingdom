@@ -1,23 +1,58 @@
 # 千古筑迹
 
-《千古筑迹》首期工程基线，采用前后端分离结构：
+一款历史遗址命运抉择类卡牌游戏，穿越千年风云，抉择历史命运。
 
-- 前端：`Vue 3 + TypeScript + Vite`
-- 后端：`Spring Boot 3 + Java 17 + Maven`
-- 部署：`Nginx 托管前端 dist + 反向代理 Spring Boot`
+![Game Preview](https://img.shields.io/badge/Vue-3-42b983?style=flat-square&logo=vue.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-6DB33F?style=flat-square&logo=spring)
 
-## 目录结构
+## 🎮 游戏简介
 
-```text
-.
-├─ frontend/          # Vue 前端项目
-├─ backend/           # Spring Boot 后端项目
-└─ deploy/nginx/      # Nginx 示例配置
-```
+**千古筑迹** 是一款以中国历史遗址为主题的命运抉择类卡牌游戏。玩家将扮演历史人物，在左右抉择中体验历史的波澜壮阔。
 
-## 本地开发
+### 核心玩法
 
-### 1. 启动前端
+- 🔮 **左右抉择**：每回合面临两个选择，左右滑动卡片进行抉择
+- 📊 **四维属性**：天意、权谋、兵力、粮草，属性过高或耗尽都会导致游戏结束
+- 🏛️ **十大遗址**：五丈原、剑门关、采石矶、垓下、马嵬驿、钓鱼城、景山、山海关、襄阳古城、卢沟桥与华清宫
+- 🎵 **沉浸音效**：根据结局和属性变化智能播放背景音效
+
+## 🏛️ 遗址剧本
+
+| 遗址 | 时代 | 核心人物 |
+|------|------|---------|
+| 五丈原诸葛亮庙 | 三国 · 公元234年 | 诸葛亮、司马懿 |
+| 剑门关 | 三国 · 公元263年 | 姜维、钟会、邓艾 |
+| 采石矶 | 南宋 · 公元1161年 | 虞允文、完颜亮 |
+| 垓下遗址 | 楚汉 · 公元前202年 | 项羽、刘邦、虞姬 |
+| 马嵬驿 | 盛唐 · 公元756年 | 唐玄宗、杨贵妃、陈玄礼 |
+| 钓鱼城遗址 | 南宋 · 公元1259年 | 王坚、张珏、蒙哥 |
+| 景山 | 明末 · 公元1644年 | 崇祯帝 |
+| 山海关 | 明末清初 · 公元1644年 | 吴三桂、李自成、多尔衮 |
+| 襄阳古城 | 宋元 · 公元1267-1273年 | 吕文焕、忽必烈 |
+| 卢沟桥与宛平城 | 民国 · 公元1937年 | 宋哲元、何基沣 |
+| 华清宫 | 唐宋/1936年 | 唐玄宗、张学良、蒋介石 |
+
+## 🎨 技术栈
+
+### 前端
+- Vue 3 + Composition API
+- TypeScript
+- Vite 构建工具
+- Pinia 状态管理
+- Vue Router 路由
+
+### 后端
+- Spring Boot
+- Java
+
+### 部署
+- Nginx
+- Docker
+
+## 🚀 快速开始
+
+### 前端
 
 ```bash
 cd frontend
@@ -25,116 +60,47 @@ npm install
 npm run dev
 ```
 
-前端默认地址：
-
-- [http://localhost:5173](http://localhost:5173)
-
-前端环境变量：
-
-- `VITE_APP_TITLE`
-- `VITE_API_BASE_URL`
-
-开发环境默认通过 Vite 代理把 `/api` 转发到 `http://localhost:8080`。
-
-### 2. 启动后端
+### 后端
 
 ```bash
 cd backend
 mvn spring-boot:run
 ```
 
-后端默认地址：
-
-- [http://localhost:8080/api/health](http://localhost:8080/api/health)
-- [http://localhost:8080/api/system/info](http://localhost:8080/api/system/info)
-
-后端默认激活 `dev` 配置，已预留 MySQL 连接项：
-
-- `spring.datasource.url`
-- `spring.datasource.username`
-- `spring.datasource.password`
-- `spring.datasource.driver-class-name`
-
-当前版本未接入 ORM，也不会真正连库执行业务查询；这些配置用于后续数据库接入准备。
-
-## 构建
-
-### 前端构建
+### 构建生产版本
 
 ```bash
 cd frontend
 npm run build
 ```
 
-产物输出到：
+## 📁 项目结构
 
-- `frontend/dist`
-
-### 后端打包
-
-```bash
-cd backend
-mvn clean package
+```
+gamedemo/
+├── frontend/              # 前端项目
+│   ├── public/
+│   │   ├── audio/       # 音效文件
+│   │   └── img/         # 图片资源
+│   └── src/
+│       ├── components/    # Vue 组件
+│       ├── data/          # 游戏数据
+│       ├── stores/        # Pinia 状态管理
+│       ├── utils/         # 工具函数
+│       └── views/          # 页面视图
+├── backend/              # 后端项目
+│   └── src/main/java/    # Java 源码
+├── deploy/               # 部署配置
+└── nginx/                # Nginx 配置
 ```
 
-产物输出到：
+## 🎵 音效系统
 
-- `backend/target/backend-0.1.0.jar`
+游戏内置音效反馈系统：
+- **真结局**：播放《关羽之歌》或《刘备之死》
+- **属性警告**：根据属性变化播放不同音效
+- **智能打断**：用户操作时自动停止当前音效
 
-## 服务器部署
+## 📝 License
 
-### 1. 部署前端
-
-将 `frontend/dist` 上传到服务器静态目录，例如：
-
-```text
-/var/www/wangquan/frontend/dist
-```
-
-### 2. 部署后端
-
-将 JAR 上传到服务器后运行：
-
-```bash
-java -jar backend-0.1.0.jar --spring.profiles.active=prod
-```
-
-生产环境可通过环境变量覆盖数据库与 CORS 配置：
-
-- `DB_URL`
-- `DB_USERNAME`
-- `DB_PASSWORD`
-- `APP_CORS_ALLOWED_ORIGIN`
-
-### 3. 配置 Nginx
-
-示例配置见：
-
-- `deploy/nginx/wangquan.conf`
-
-配置重点：
-
-- `/` 返回前端静态资源
-- `try_files` 回退到 `index.html`，保证 SPA 刷新不 404
-- `/api/` 反向代理到 `127.0.0.1:8080`
-- 开启 UTF-8、gzip 和基础静态缓存
-
-## 工程说明
-
-- 当前首页是一个框架验证页，用于验证响应式布局、主题基线和前后端联通
-- 页面尺寸优先采用 `dvh / dvw / vh / vw` 与 `clamp()` 组织
-- 后续可在现有 Router、Pinia、API 封装和后端统一返回体的基础上继续叠加游戏玩法
-
-## 验证建议
-
-前端：
-
-- `npm run dev`
-- `npm run build`
-- 桌面端和移动端宽度下检查首页是否稳定显示
-
-后端：
-
-- `mvn test`
-- `mvn clean package`
-- 手动访问 `/api/health` 和 `/api/system/info`
+MIT License
